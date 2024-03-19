@@ -1,0 +1,48 @@
+<!-- template.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Sentence</title>
+</head>
+<body>
+    <h1>Streaming Sentence</h1>
+    <div id="sentence"></div>
+    <script>
+        // Fetch the streamed sentence and display it in real-time
+        fetch('/stream_sentence/')
+            .then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                return new ReadableStream({
+                    start(controller) {
+                        function push() {
+                            reader.read().then(({ done, value }) => {
+                                if (done) {
+                                    controller.close();
+                                    return;
+                                }
+                                controller.enqueue(value);
+                                push();
+                            });
+                        }
+                        push();
+                    }
+                });
+            })
+            .then(stream => {
+                const reader = stream.getReader();
+                reader.read().then(function processText({ done, value }) {
+                    if (done) {
+                        return;
+                    }
+                    document.getElementById('sentence').innerHTML += decoder.decode(value);
+                    reader.read().then(processText);
+                });
+            })
+            .catch(err => console.error(err));
+    </script>
+</body>
+</html>
